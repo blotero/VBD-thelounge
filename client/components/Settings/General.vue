@@ -1,0 +1,178 @@
+<template>
+	<div>
+		<!-- Native app -->
+		<SettingCard v-if="canRegisterProtocol || hasInstallPromptEvent" title="Native app">
+			<div v-if="hasInstallPromptEvent" class="setting-action-row">
+				<div class="setting-card-intro">
+					Install The Lounge as a standalone app on your device
+				</div>
+				<button type="button" class="btn btn-small" @click.prevent="nativeInstallPrompt">
+					Add to Home screen
+				</button>
+			</div>
+			<div v-if="canRegisterProtocol" class="setting-action-row">
+				<div class="setting-card-intro">Handle irc:// links directly in The Lounge</div>
+				<button type="button" class="btn btn-small" @click.prevent="registerProtocol">
+					Register as irc:// handler
+				</button>
+			</div>
+		</SettingCard>
+
+		<!-- File uploads -->
+		<SettingCard v-if="store.state.serverConfiguration?.fileUpload" title="File uploads">
+			<SettingToggle
+				name="uploadCanvas"
+				label="Strip image metadata"
+				description="Re-render images to remove EXIF data before uploading. May affect orientation in older browsers."
+				:checked="store.state.settings.uploadCanvas"
+			/>
+		</SettingCard>
+
+		<!-- Settings sync -->
+		<SettingCard v-if="!store.state.serverConfiguration?.public" title="Settings sync">
+			<SettingToggle
+				name="syncSettings"
+				label="Sync settings across devices"
+				description="Keep your preferences in sync with other browsers and devices"
+				:checked="store.state.settings.syncSettings"
+			/>
+			<template v-if="!store.state.settings.syncSettings">
+				<div v-if="store.state.serverHasSettings" class="setting-action-row">
+					<div class="setting-card-intro">
+						<strong>Warning:</strong> Enabling sync will override this client's settings
+						with those stored on the server.
+					</div>
+					<button type="button" class="btn btn-small" @click="onForceSyncClick">
+						Sync settings and enable
+					</button>
+				</div>
+				<div v-else class="setting-card-intro">
+					No settings have been synced before. Enabling this will upload your current
+					settings as the starting point for other devices.
+				</div>
+			</template>
+		</SettingCard>
+
+		<!-- Typing indicators -->
+		<SettingCard title="Typing indicators">
+			<div class="setting-card-intro">
+				Show when others are typing, and let them see when you are
+			</div>
+			<label for="typing" class="sr-only">Typing indicators</label>
+			<select id="typing" :value="store.state.settings.typing" name="typing" class="input">
+				<option value="on">Send &amp; receive</option>
+				<option value="receive">Receive only</option>
+				<option value="off">Off</option>
+			</select>
+		</SettingCard>
+
+		<!-- Away message -->
+		<SettingCard v-if="!store.state.serverConfiguration?.public" title="Away message">
+			<div>
+				<label for="awayMessage" class="setting-row-text">
+					<div class="setting-row-label">Away message</div>
+					<div class="setting-row-description">
+						Automatically set when The Lounge is not open
+					</div>
+				</label>
+				<input
+					id="awayMessage"
+					:value="store.state.settings.awayMessage"
+					type="text"
+					name="awayMessage"
+					class="input"
+					placeholder="Away message"
+				/>
+			</div>
+		</SettingCard>
+	</div>
+</template>
+
+<script lang="ts">
+import {computed, defineComponent, onMounted, ref} from "vue";
+import {useStore} from "../../js/store";
+import {BeforeInstallPromptEvent} from "../../js/types";
+import SettingCard from "./SettingCard.vue";
+import SettingToggle from "./SettingToggle.vue";
+
+let installPromptEvent: BeforeInstallPromptEvent | null = null;
+
+window.addEventListener("beforeinstallprompt", (e) => {
+	e.preventDefault();
+	installPromptEvent = e as BeforeInstallPromptEvent;
+});
+
+export default defineComponent({
+	name: "GeneralSettings",
+	components: {
+		SettingCard,
+		SettingToggle,
+	},
+	setup() {
+		const store = useStore();
+		const canRegisterProtocol = ref(false);
+
+		const hasInstallPromptEvent = computed(() => {
+			// TODO: This doesn't hide the button after clicking
+			return installPromptEvent !== null;
+		});
+
+		onMounted(() => {
+			// Enable protocol handler registration if supported,
+			// and the network configuration is not locked
+			canRegisterProtocol.value =
+				!!window.navigator.registerProtocolHandler &&
+				!store.state.serverConfiguration?.lockNetwork;
+		});
+
+		const nativeInstallPrompt = () => {
+			if (!installPromptEvent) {
+				return;
+			}
+
+			installPromptEvent.prompt().catch((e) => {
+				// eslint-disable-next-line no-console
+				console.error(e);
+			});
+
+			installPromptEvent = null;
+		};
+
+		const onForceSyncClick = () => {
+			store.dispatch("settings/syncAll", true).catch((e) => {
+				// eslint-disable-next-line no-console
+				console.error(e);
+			});
+
+			store
+				.dispatch("settings/update", {
+					name: "syncSettings",
+					value: true,
+					sync: true,
+				})
+				.catch((e) => {
+					// eslint-disable-next-line no-console
+					console.error(e);
+				});
+		};
+
+		const registerProtocol = () => {
+			const uri = document.location.origin + document.location.pathname + "?uri=%s";
+			// @ts-expect-error
+			// the third argument is deprecated but recommended for compatibility: https://developer.mozilla.org/en-US/docs/Web/API/Navigator/registerProtocolHandler
+			window.navigator.registerProtocolHandler("irc", uri, "The Lounge");
+			// @ts-expect-error
+			window.navigator.registerProtocolHandler("ircs", uri, "The Lounge");
+		};
+
+		return {
+			store,
+			canRegisterProtocol,
+			hasInstallPromptEvent,
+			nativeInstallPrompt,
+			onForceSyncClick,
+			registerProtocol,
+		};
+	},
+});
+</script>

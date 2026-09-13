@@ -1,0 +1,92 @@
+<template>
+	<span
+		:class="['user', {[nickColor]: store.state.settings.coloredNicks}, {active: active}]"
+		:data-name="user.nick"
+		role="button"
+		v-on="onHover ? {mouseenter: hover} : {}"
+		@click.prevent="openContextMenu"
+		@contextmenu.prevent="openContextMenu"
+		><template v-if="html"><span class="nick" v-html="html"></span></template
+		><template v-else>{{ mode }}{{ user.nick }}</template
+		><span v-if="user.isBot" class="user-bot-indicator" title="Bot"> [bot]</span
+		><StatusIcon v-if="includeStatusIcon" :away="!!user.away" tooltip-dir="w" :online="true"
+	/></span>
+</template>
+
+<script lang="ts">
+import {computed, defineComponent, PropType} from "vue";
+import {UserInMessage} from "../../shared/types/msg";
+import eventbus from "../js/eventbus";
+import colorClass from "../js/helpers/colorClass";
+import type {ClientChan, ClientNetwork} from "../js/types";
+import StatusIcon from "./StatusIcon.vue";
+import {useStore} from "../js/store";
+
+type UsernameUser = Partial<UserInMessage> & {
+	mode?: string;
+	nick: string;
+};
+
+export default defineComponent({
+	name: "Username",
+	components: {
+		StatusIcon,
+	},
+	props: {
+		user: {
+			// TODO: UserInMessage shouldn't be necessary here.
+			type: Object as PropType<UsernameUser | UserInMessage>,
+			required: true,
+		},
+		active: Boolean,
+		onHover: {
+			type: Function as PropType<(user: UserInMessage) => void>,
+			required: false,
+		},
+		channel: {type: Object as PropType<ClientChan>, required: false},
+		network: {type: Object as PropType<ClientNetwork>, required: false},
+		includeStatusIcon: Boolean,
+		html: String,
+	},
+	setup(props) {
+		const mode = computed(() => {
+			// Message objects have a singular mode, but user objects have modes array
+			if (props.user.modes) {
+				return props.user.modes[0];
+			}
+
+			return props.user.mode;
+		});
+
+		// TODO: Nick must be ! because our user prop union includes UserInMessage
+		const nickColor = computed(() => colorClass(props.user.nick!));
+
+		const hover = () => {
+			if (props.onHover) {
+				return props.onHover(props.user as UserInMessage);
+			}
+
+			return null;
+		};
+
+		const openContextMenu = (event: Event) => {
+			eventbus.emit("contextmenu:user", {
+				event: event,
+				user: props.user,
+				network: props.network,
+				channel: props.channel,
+			});
+		};
+
+		const store = useStore();
+
+		return {
+			mode,
+			nickColor,
+			hover,
+			openContextMenu,
+			store,
+		};
+	},
+});
+</script>

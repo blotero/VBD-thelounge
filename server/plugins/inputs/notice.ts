@@ -1,0 +1,50 @@
+import {PluginInputHandler} from "./index";
+
+const commands = ["notice"];
+
+const input: PluginInputHandler = function (network, chan, cmd, args, extras) {
+	if (!args[1]) {
+		return;
+	}
+
+	let targetName = args[0];
+	let message = args.slice(1).join(" ");
+
+	const replyTo = extras?.replyTo;
+	const replyTags =
+		replyTo && network.serverOptions.supportsReply ? {"+reply": replyTo} : undefined;
+	network.irc.notice(targetName, message, replyTags);
+
+	// If the IRCd does not support echo-message, simulate the message
+	// being sent back to us.
+	if (!network.irc.network.cap.isEnabled("echo-message")) {
+		let targetGroup;
+		const parsedTarget = network.irc.network.extractTargetGroup(targetName);
+
+		if (parsedTarget) {
+			targetName = parsedTarget.target;
+			targetGroup = parsedTarget.target_group;
+		}
+
+		const targetChan = network.getChannel(targetName);
+
+		if (typeof targetChan === "undefined") {
+			message = "{to " + args[0] + "} " + message;
+		}
+
+		network.irc.emit("notice", {
+			nick: network.irc.user.nick,
+			target: targetName,
+			group: targetGroup,
+			message: message,
+			tags: replyTo ? {"+reply": replyTo} : undefined,
+		});
+	}
+
+	return true;
+};
+
+export default {
+	commands,
+	input,
+};

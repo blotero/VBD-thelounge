@@ -1,0 +1,83 @@
+<template>
+	<!-- TODO: investigate -->
+	<ChannelWrapper ref="wrapper" v-bind="$props">
+		<StatusIcon
+			v-if="showStatusIcon"
+			:online="channel.isOnline"
+			:away="channel.userAway !== null && channel.userAway !== undefined"
+		/>
+		<span class="name">{{ channel.name }}</span>
+		<span
+			v-if="channel.unread"
+			:class="{highlight: channel.highlight && !channel.muted}"
+			class="badge"
+			>{{ unreadCount }}</span
+		>
+		<template v-if="channel.type === 'channel'">
+			<span
+				v-if="channel.state === 0"
+				class="parted-channel-tooltip tooltipped tooltipped-w"
+				aria-label="Not currently joined"
+			>
+				<span class="parted-channel-icon" />
+			</span>
+			<span class="close-tooltip tooltipped tooltipped-w" data-tooltip="Leave">
+				<button class="close" aria-label="Leave" @click.stop="close" />
+			</span>
+		</template>
+		<template v-else>
+			<span class="close-tooltip tooltipped tooltipped-w" data-tooltip="Close">
+				<button class="close" aria-label="Close" @click.stop="close" />
+			</span>
+		</template>
+	</ChannelWrapper>
+</template>
+
+<script lang="ts">
+import {PropType, defineComponent, computed} from "vue";
+import roundBadgeNumber from "../js/helpers/roundBadgeNumber";
+import useCloseChannel from "../js/hooks/use-close-channel";
+import {ClientChan, ClientNetwork} from "../js/types";
+import {ChanType} from "../../shared/types/chan";
+import {useStore} from "../js/store";
+import ChannelWrapper from "./ChannelWrapper.vue";
+import StatusIcon from "./StatusIcon.vue";
+
+export default defineComponent({
+	name: "Channel",
+	components: {
+		ChannelWrapper,
+		StatusIcon,
+	},
+	props: {
+		network: {
+			type: Object as PropType<ClientNetwork>,
+			required: true,
+		},
+		channel: {
+			type: Object as PropType<ClientChan>,
+			required: true,
+		},
+		active: Boolean,
+		isFiltering: Boolean,
+	},
+	setup(props) {
+		const store = useStore();
+		const unreadCount = computed(() => roundBadgeNumber(props.channel.unread));
+		const showStatusIcon = computed(
+			() =>
+				store.state.settings.statusIndicators &&
+				props.channel.type === ChanType.QUERY &&
+				props.network.status.connected &&
+				props.channel.isOnline !== null
+		);
+		const close = useCloseChannel(props.channel);
+
+		return {
+			unreadCount,
+			showStatusIcon,
+			close,
+		};
+	},
+});
+</script>
