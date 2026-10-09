@@ -576,12 +576,31 @@ function initializeClient(
 
 						const hash = Helper.password.hash(p1);
 
-						client.setPassword(hash, (success: boolean) => {
-							socket.emit("change-password", {
-								success: success,
-								error: success ? undefined : "update_failed",
-							});
-						});
+						client.setPassword(
+							hash,
+							(success: boolean) => {
+								socket.emit("change-password", {
+									success: success,
+									error: success ? undefined : "update_failed",
+								});
+
+								if (!success) {
+									return;
+								}
+
+								_.forOwn(client.attachedClients, (attachedClient, socketId) => {
+									if (attachedClient.token === token) {
+										return;
+									}
+
+									const peer = manager!.sockets.of("/").sockets.get(socketId);
+
+									peer?.emit("sign-out");
+									peer?.disconnect();
+								});
+							},
+							token
+						);
 					})
 					.catch((error: Error) => {
 						log.error(`Error while checking users password. Error: ${error.message}`);

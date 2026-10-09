@@ -434,15 +434,22 @@ class Client {
 		client.save();
 	}
 
-	setPassword(hash: string, callback: (success: boolean) => void) {
+	setPassword(hash: string, callback: (success: boolean) => void, keepToken?: string) {
 		const client = this;
 
 		const oldHash = client.config.password;
+		const oldSessions = client.config.sessions;
 		client.config.password = hash;
+
+		if (keepToken !== undefined) {
+			client.config.sessions = _.pick(oldSessions, keepToken);
+		}
+
 		client.manager.saveUser(client, function (err) {
 			if (err) {
 				// If user file fails to write, reset it back
 				client.config.password = oldHash;
+				client.config.sessions = oldSessions;
 				return callback(false);
 			}
 
