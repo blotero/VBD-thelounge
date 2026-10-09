@@ -1087,10 +1087,17 @@ function performAuthentication(this: Socket, data: AuthPerformData) {
 		const providedToken = client.calculateTokenHash(data.token);
 
 		if (Object.prototype.hasOwnProperty.call(client.config.sessions, providedToken)) {
-			token = providedToken;
+			const session = client.config.sessions[providedToken];
 
-			authCallback(true);
-			return;
+			if (session.created < (client.config.passwordChanged || 0)) {
+				delete client.config.sessions[providedToken];
+				client.save();
+			} else {
+				token = providedToken;
+
+				authCallback(true);
+				return;
+			}
 		}
 	}
 

@@ -67,9 +67,11 @@ type ClientPushSubscription = {
 export type UserConfig = {
 	log: boolean;
 	password: string;
+	passwordChanged?: number;
 	sessions: {
 		[token: string]: {
 			lastUse: number;
+			created?: number;
 			ip: string;
 			agent: string;
 			pushSubscription?: ClientPushSubscription;
@@ -438,11 +440,14 @@ class Client {
 		const client = this;
 
 		const oldHash = client.config.password;
+		const oldChanged = client.config.passwordChanged;
 		client.config.password = hash;
+		client.config.passwordChanged = Date.now();
 		client.manager.saveUser(client, function (err) {
 			if (err) {
 				// If user file fails to write, reset it back
 				client.config.password = oldHash;
+				client.config.passwordChanged = oldChanged;
 				return callback(false);
 			}
 
