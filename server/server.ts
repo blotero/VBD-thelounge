@@ -845,15 +845,10 @@ function initializeClient(
 
 		client.save();
 
-		_.map(client.attachedClients, (attachedClient, socketId) => {
-			if (attachedClient.token !== tokenToSignOut) {
-				return;
+		_.forEach(client.attachedClients, (attachedClient, socketId) => {
+			if (attachedClient.token === tokenToSignOut) {
+				client.clientDetach(socketId);
 			}
-
-			const socketToRemove = manager!.sockets.of("/").sockets.get(socketId);
-
-			socketToRemove!.emit("sign-out");
-			socketToRemove!.disconnect();
 		});
 
 		// Do not send updated session list if user simply logs out
