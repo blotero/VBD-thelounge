@@ -1080,30 +1080,44 @@ function performAuthentication(this: Socket, data: AuthPerformData) {
 		initClient();
 	};
 
+	const passwordAuth = () => {
+		if (!("user" in data && "password" in data)) {
+			log.warn("performAuthentication: callback data has no user or no password");
+			authCallback(false);
+			return;
+		}
+
+		Auth.initialize().then(() => {
+			// Perform password checking
+			Auth.auth(manager, client, data.user, data.password, authCallback);
+		});
+	};
+
 	client = manager!.findClient(data.user);
 
 	// We have found an existing user and client has provided a token
 	if (client && "token" in data && data.token) {
 		const providedToken = client.calculateTokenHash(data.token);
 
-		if (Object.prototype.hasOwnProperty.call(client.config.sessions, providedToken)) {
-			token = providedToken;
+		client
+			.resumeSession(providedToken)
+			.catch((e: Error) => {
+				log.warn(`Could not store session for ${colors.bold(data.user)}: ${e.message}`);
+				return true;
+			})
+			.then((resumed) => {
+				if (!resumed) {
+					return passwordAuth();
+				}
 
-			authCallback(true);
-			return;
-		}
-	}
+				token = providedToken;
+				authCallback(true);
+			});
 
-	if (!("user" in data && "password" in data)) {
-		log.warn("performAuthentication: callback data has no user or no password");
-		authCallback(false);
 		return;
 	}
 
-	Auth.initialize().then(() => {
-		// Perform password checking
-		Auth.auth(manager, client, data.user, data.password, authCallback);
-	});
+	passwordAuth();
 }
 
 function reverseDnsLookup(ip: string, callback: (hostname: string) => void) {

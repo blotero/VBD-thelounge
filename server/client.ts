@@ -406,6 +406,19 @@ class Client {
 		return crypto.createHash("sha512").update(token).digest("hex");
 	}
 
+	resumeSession(token: string) {
+		if (!Object.prototype.hasOwnProperty.call(this.config.sessions, token)) {
+			return Promise.resolve(false);
+		}
+
+		this.config.sessions[token].lastUse = Date.now();
+
+		return new Promise<boolean>((resolve, reject) => {
+			this.manager.saveUser(this, (err) => (err ? reject(err) : resolve(true)));
+			resolve(true);
+		});
+	}
+
 	updateSession(token: string, ip: string, request: any) {
 		const client = this;
 		const agent = UAParser(request.headers["user-agent"] || "");
