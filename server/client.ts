@@ -802,9 +802,9 @@ class Client {
 				if (socket) {
 					if (signOut) {
 						socket.emit("sign-out");
-					} else {
-						socket.disconnect();
 					}
+
+					socket.disconnect();
 				}
 			}
 		}
