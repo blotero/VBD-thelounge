@@ -856,6 +856,28 @@ class Client {
 		}
 	}
 
+	signOut(token: string) {
+		const client = this;
+
+		_.forOwn(client.attachedClients, (attachedClient, socketId) => {
+			if (attachedClient.token !== token) {
+				return;
+			}
+
+			const socket = client.manager.sockets.of("/").sockets.get(socketId);
+
+			if (socket) {
+				socket.emit("sign-out");
+				socket.disconnect();
+			}
+		});
+
+		if (_.find(client.attachedClients, {token}) === undefined) {
+			delete client.config.sessions[token];
+			client.save();
+		}
+	}
+
 	// TODO: type session to this.attachedClients
 	registerPushSubscription(session: any, subscription: PushSubscriptionJSON, noSave = false) {
 		if (

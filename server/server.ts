@@ -841,20 +841,7 @@ function initializeClient(
 			return;
 		}
 
-		delete client.config.sessions[tokenToSignOut];
-
-		client.save();
-
-		_.map(client.attachedClients, (attachedClient, socketId) => {
-			if (attachedClient.token !== tokenToSignOut) {
-				return;
-			}
-
-			const socketToRemove = manager!.sockets.of("/").sockets.get(socketId);
-
-			socketToRemove!.emit("sign-out");
-			socketToRemove!.disconnect();
-		});
+		client.signOut(tokenToSignOut);
 
 		// Do not send updated session list if user simply logs out
 		if (tokenToSignOut !== token) {
