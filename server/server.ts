@@ -1089,7 +1089,7 @@ function performAuthentication(this: Socket, data: AuthPerformData) {
 		if (Object.prototype.hasOwnProperty.call(client.config.sessions, providedToken)) {
 			const session = client.config.sessions[providedToken];
 
-			if (session.created < (client.config.passwordChanged || 0)) {
+			if (session.lastUse < (client.config.passwordChanged || 0)) {
 				delete client.config.sessions[providedToken];
 				client.save();
 			} else {
