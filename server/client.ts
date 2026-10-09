@@ -859,6 +859,9 @@ class Client {
 	signOut(token: string) {
 		const client = this;
 
+		delete client.config.sessions[token];
+		client.save();
+
 		_.forOwn(client.attachedClients, (attachedClient, socketId) => {
 			if (attachedClient.token !== token) {
 				return;
@@ -871,11 +874,6 @@ class Client {
 				socket.disconnect();
 			}
 		});
-
-		if (_.find(client.attachedClients, {token}) === undefined) {
-			delete client.config.sessions[token];
-			client.save();
-		}
 	}
 
 	// TODO: type session to this.attachedClients
